@@ -5,6 +5,7 @@
 #include<map>
 
 #include "variable.h"
+#include "symbolic.h"
 
 using std::cout;
 using std::endl;
