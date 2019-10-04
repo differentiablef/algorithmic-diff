@@ -3,69 +3,94 @@
 #ifndef SYMBOLIC_H
 #define SYMBOLIC_H
 
+#include <iostream>
 #include <map>
-#include <list>
+#include <vector>
+#include <memory>
 
 #include "diff.h"
 
-namespace diff
-{
-// namespace for symbolic calculations
-namespace symbolic {
+namespace diff {
+namespace sym { // symbolic manipulation
+
+using std::vector;
+using std::map;
+using std::ostream;
 
 typedef std::size_t               index;      // type used to index variables
-typedef std::map<index, constant> assignment; // variable index -> value
+typedef map<index, constant> assignment; // variable index -> value
 
-typedef std::map<index, index>    term;       // variable index -> op index
-//typedef std::map<term, constant>  expression; // group of terms to be combined
+// expression types
+enum types { Empty, Constant, Variable,
+             Tuple, Sum, Product,
+             Apply };
 
-
-// Expression Eval Tree ////////////////////////////////////////////////////////
+    
+// Expression Class ////////////////////////////////////////////////////////////
 
 class expression
 {
   public:
-    enum node_type
-        { Empty, Constant, Variable, Apply, Tuple, Sum, Product};
-    
-    // node type:
-    //       0: empty
-    //       1: numeric constant   (lhs ~ value,      rhs ~ NULL)
-    //       2: variable           (lhs ~ id,         rhs ~ expo (id))
-    //       3: apply function     (lhs ~ callable,   rhs ~ expr_tree *)
-    //
-    //       4: tuple               (lhs ~ exprs,     rhs ~ NULL)
-    //       5: addition            (lhs ~ exprs,     rhs ~ NULL)
-    //       6: multiplication      (lhs ~ exprs,     rhs ~ NULL)
-    //
-    //       7: subtraction         (lhs ~ expr_tree*, rhs ~ expr_tree*)
-    //       8: division            (lhs ~ expr_tree*, rhs ~ expr_tree*)
-    
-    struct node
-    {
-        node_type type;
-        union {
-            index id;
-            constant value;
-            std::list<expression *> *exprs;
-            void *ptr;
-        } lhs, rhs;
+
+    // type dependent info
+    union info {
+        index id;
+        const char *name;
+        constant value;
     };
 
+    // type:
+    //       0: empty
+    //       1: constant         (desc ~ value,   child ~ unused)
+    //       2: variable         (desc ~ id,      child ~ unused)
+    //       5: sum              (desc ~ unused,  child ~ used (sorted and weighted))
+    //       6: product          (desc ~ unused,  child ~ used (sorted and weighted))
+    //       3: apply            (desc ~ name,    child - used (unsorted))
+    //       3: tuple            (desc ~ name,    child ~ used (unsorted))
 
-  private:
-    struct node root;
+    types type;         // type of expression
+    info desc;          // type dependent descriptive info
+    constant weight;    // context dependent weight
+
+    // container holding sub-expressions
+    vector<expression*> child;
     
-  public:
-    expression() { root.type = Empty; };
-    expression(const expression &t) {  this->copy(t); };
+  public: // constructors/destructors 
+    expression() {
+        this->desc.name = NULL;
+        this->weight = 1; };
+    
+    expression(const types t){
+        this->type = t;
+        this->desc.name = NULL;
+        this->weight = 1; };
+    
+    expression(const expression &t) { this->copy(t); }
     ~expression() { };
     
-  public:
+  public: // basic interface
     void clear();
     void copy(const expression &t);
+
+  public: // sub-expression interface
+
+    void absorb(expression &e); // sum & product
+    void attach(const expression &e, index n); 
+
+  public: // parse tree interface
+    
+    // replace all leafs of type Variable & id 'n'
+    //     with a pointer to `expr`
+    void assign(index n, expression &expr);
+    
+    
+  public: // friends
+    friend bool operator<(const expression &le, const expression &re);
+    friend ostream & operator<<(ostream &os, const expression &a);
     
 };
+
+// /////////////////////////////////////////////////////////////////////////////
 
 }; // symbolic
 }; // diff
