@@ -20,103 +20,58 @@ using std::map;
 
 using namespace diff::sym;
 
-void dump_expr(expression &a)
-{
-    switch(a.type)
-    {
-      case types::Empty:
-          return;
-          
-      case types::Constant:
-          cout << a.desc.value;
-          return;
-          
-      case types::Variable:
-          cout << "(v" << a.desc.id << ")";
-          return;
-
-      case types::Sum: {
-          bool not_first = false;
-          cout << '[';
-          for(auto p : a.child)
-          {   
-              if(not_first)
-                  cout << "+";
-              else
-                  not_first = true;
-              
-              if(p->weight != 1)
-                  cout << p->weight;
-              dump_expr(*p);
-          }
-          cout << ']';
-      } break;
-      case types::Product:{
-          bool not_first = false;
-          for(auto p : a.child)
-          {
-              if(not_first)
-                  cout << "";
-              else
-                  not_first = true;
-              
-              dump_expr(*p);
-
-              if(p->weight != 1)
-                  cout << "^" << p->weight;
-
-          }
-      } break;
-          
-      case types::Tuple:
-      case types::Apply:
-          break;
-
-    }
-}
-
-int main
+int  main
 () {
-    expression *p1;
-    expression x, w, z, sum, prod, fun;
-
-    sum.type = Sum;
-    prod.type = Product;
-    fun.type = Apply;
-    fun.desc.name = "F";
-
-    x.type = Variable;
-    w.type = Variable;
-    z.type = Variable;
-    x.desc.id = 3;
-    w.desc.id = 4;
-    z.desc.id = 5;
+    expression fval;
+    expression x, w, z, sum, prod, function, a1, a2, a3;
     
-    sum.absorb(x);
-    sum.absorb(w);
-    sum.absorb(z);
+    x.type    = Variable;
+    x.name    = "x";
+    w.type    = Variable;
+    w.name    = "w";
+    z.type    = Variable;
+
+    sum.type  = Sum;
+    prod.type = Product;
     
     z.type = Constant;
     z.desc.value = 1;
-    for(auto i = 0; i < 3; i++ )
+
+    for(auto i = 0; i < 5; i++ )
     {
-        x.desc.id = (i % 3);
-        w.desc.id = (i % 2);
-        z.desc.value *= 2;
+        x.desc.id = i;
+        w.desc.id = i;
         
         prod.clear();
-        
-        prod.absorb(sum);
         prod.absorb(x);
         prod.absorb(w);
-        prod.absorb(z);
         sum.absorb(prod);
     }
 
-    z.desc.value = 11;
-    sum.absorb(z);
-
     cout << sum << endl;
+
+    function.type  = Apply;
+    function.name  = "F";
+    
+    a1.type = Variable; a1.desc.id = 1;
+    a2.type = Variable; a2.desc.id = 2;
+    a3.type = Variable; a3.desc.id = 3;
+    
+    fval = function.at({&a1,&a2,&a3});
+    
+    DEBUG(fval);
+    
+    prod.clear();
+    prod.absorb(sum);
+
+    a1.copy(sum);
+    expression h = function.at({&x,&w});
+    a2.copy(prod.absorb(h).absorb(h) );
+    a3.copy(sum);
+
+
+    DEBUG(fval);
+    
 
     
 }
