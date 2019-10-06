@@ -28,21 +28,21 @@ int  main
 
     //c.set_name("1");
     c.desc.value = 1;
-    poly0.absorp(c);
+    poly0 += c;
     for(auto i = 0; i < N0; i++)
     {
-        xpow.absorp(x);
-        poly0.absorp(xpow);
+        xpow *= x;
+        poly0 += xpow;;
     }
     DEBUG(poly0);
     
-    x.set_id(2);
+    x.set_id(1);
     xpow.clear();
-    poly1.absorp(c);
+    poly1 += c;
     for(auto i = 0; i < N1; i++)
     {
-        xpow.absorp(x);
-        poly1.absorp(xpow);
+        xpow *= x;
+        poly1 += xpow;
     }
     DEBUG(poly1);
     
@@ -52,14 +52,20 @@ int  main
             {
                 auto a = {*p0, *p1, *p2};
                 DEBUG(a);
+                
                 tmp.clear();
-                tmp.absorp(*p0).absorp(*p1).absorp(*p2);
-                result.absorp(tmp);
+                for(auto t : a)
+                    tmp *= t;
+                
+                result += tmp;
                 DEBUG(result);
 
             }
 
-    
+
+
+    c += xpow;
+    DEBUG(c);
 /*
     function.type  = Apply;
     function.name  = "F";
