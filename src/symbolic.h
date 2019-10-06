@@ -38,7 +38,7 @@ class expression
     
     // type dependent info
     union info
-    {   
+    {
         index id;
         constant value;
     };
@@ -56,7 +56,7 @@ class expression
     types type;         // type of expression
     info desc;          // type dependent descriptive info
     constant weight;    // context dependent weight
-    bool copied;        // whether we are a copy of another variable
+    bool copied;        // whether we are a copy of another expression
     // container holding sub-expressions
     vector<expression*> child;
     
@@ -99,7 +99,7 @@ class expression
     // apply-function
     void        set_args(std::initializer_list<expression*> il);
     void        set_arg(index n, expression &e);
-    expression *get_arg(index n);
+    expression &get_arg(index n);
 
     // returns expression representing 'function' at `il`
     expression  at(std::initializer_list<expression*> il);
@@ -109,14 +109,67 @@ class expression
     
   public: // parse tree interface
     
-    // replace all leafs of type Variable & id 'n'
+    // replace all leafs equivalent to `var`
     //     with a pointer to `expr`
-    void assign(index n, expression &expr);
+    // asserts: var.type == types::Variable
+    bool assign(expression &var, expression &expr);
     
     
   public: // friends (comparison and printing) 
     friend bool      operator<(const expression &le, const expression &re);
     friend ostream & operator<<(ostream &os, const expression &a);
+
+
+  public:
+    expression &operator+=(const expression &rhs)
+    {
+        if(this->type == types::Sum)
+            return this->absorp(rhs);
+        else {
+            expression *e;
+            if(rhs.type == types::Sum) {
+                e = new expression(rhs);
+                e->absorp(*this);
+            } else {
+                e = new expression(Sum);
+                e->absorp(*this);
+                e->absorp(rhs);
+            }
+            this->clear();
+            this->copy(*e);
+            delete e;
+            return (*this);
+        }
+        
+    }
+
+    expression &operator*=(const expression &rhs)
+    {
+        if(this->type == types::Product)
+            return this->absorp(rhs);
+        else {
+            expression *e;
+            if(rhs.type == types::Product) {
+                e = new expression(rhs);
+                e->absorp(*this);
+            } else {
+                e = new expression(Product);
+                e->absorp(*this);
+                e->absorp(rhs);
+            }
+            this->clear();
+            this->copy(*e);
+            delete e;
+            return (*this);
+        }
+    }
+    expression operator+(const expression &rhs)
+    {
+        if(this->type == types::Sum)
+            return expression(*this).absorp(rhs);
+        if(rhs.type == types::Sum)
+            return expression(rhs).absorp(*this);
+    }
     
 };
 

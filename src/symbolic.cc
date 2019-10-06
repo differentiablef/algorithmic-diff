@@ -4,6 +4,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <vector>
+#include <cmath>
 #include <algorithm>
 
 #include "util.h"
@@ -19,7 +20,6 @@ const char *tuple_sep   = ", ",  *tuple_par="[]";
 const char *sum_sym     = " + ", *sum_par="()";
 const char *product_sym = "*",   *product_par="";
 const char *exponet_sym = "^";
-
 
 // ostream '<<' extension for expression class
 ostream &operator<<(ostream &os, const expression &a)
@@ -134,7 +134,7 @@ bool operator<(const expression &le, const expression &re)
       case types::Variable: // compared using lex order of (name, id, weight)
           if( le.desc.id > re.desc.id ) return false;
           if( le.desc.id < re.desc.id ) return true;
-          if( le.weight > re.weight )   return true;
+          if( le.weight < re.weight )   return true;
           return false;
 
       case types::Apply:
@@ -144,7 +144,8 @@ bool operator<(const expression &le, const expression &re)
       {   // compare using lex order on children
           bool tvalue, rvalue;
           auto m = std::min( le.child.size(), re.child.size() );
-          for(auto i=0; i < m; i++) {
+          for(auto i=0; i < m; i++)
+          {
               tvalue = *(le.child[i]) < *(re.child[i]); // recursive call
               if(!tvalue) {
                   rvalue = *(re.child[i]) < *(le.child[i]); // recursive call
@@ -155,15 +156,29 @@ bool operator<(const expression &le, const expression &re)
               } else
                   return true;
           }
-          return (le.child.size() > re.child.size());
+          return (le.child.size() < re.child.size());
       }
       
       default:
-          throw std::runtime_error("expression type no found"); 
+          throw std::runtime_error("expression type not found"); 
     }
     return false;
 }
 
+// sets type to types::Constant and sets `desc.value` equal to `val`
+void expression::set_value(constant val)
+{
+    type = types::Constant;
+    desc.value = val;
+    child.clear();
+}
+
+constant expression::get_value()
+{
+    if(type != types::Constant)
+        throw std::runtime_error("non-constant type has no value");
+    return desc.value;
+}
 // sets type to types::Variable and id to n
 void expression::set_id(index n)
 {
@@ -183,6 +198,17 @@ void expression::set_arg(index n, expression &e)
     child[n] = &e;
 }
 
+expression &expression::get_arg(index n)
+{
+    if(type != types::Apply && type != types::Tuple)
+        throw std::runtime_error("cannot get arguments of non-tuple types");
+    if(n > child.size())
+        throw std::out_of_range("argument slot # out of range");
+    if(child[n] == NULL)
+        throw std::runtime_error("argument not assigned a value");
+    return *(child[n]);
+}
+
 expression expression::at(std::initializer_list<expression*> il)
 {
     expression fval;
@@ -190,9 +216,9 @@ expression expression::at(std::initializer_list<expression*> il)
     if(this->type != types::Apply)
         throw std::logic_error("wrong type");
     
-    fval.name = this->name;
-    fval.type = this->type;
-    fval.desc = this->desc;
+    fval.name = name;
+    fval.type = type;
+    fval.desc = desc;
         
     for(auto p : il)
         fval.child.push_back(p);
@@ -215,18 +241,17 @@ void expression::clear()
       case types::Product: // ...
       case types::Tuple: // user controlled children
       case types::Apply: // ...
-          for(auto p : this->child)
+          for(auto p : child)
           {
               p->clear();
               delete p;
           }
-          this->child.clear();
+          child.clear();
           break;
           
       default:
           break;
     }
-
     this->weight = 1;
 }
 
@@ -234,13 +259,13 @@ void expression::clear()
 void expression::copy(const expression &t)
 {
     // copy type and expo
-    this->type   = t.type;
-    this->weight = t.weight;
-    this->desc   = t.desc;
-    this->name   = t.name;
-    this->copied = true;
+    type   = t.type;
+    weight = t.weight;
+    desc   = t.desc;
+    name   = t.name;
+    copied = true;
     
-    switch(this->type)
+    switch(type)
     {
       case types::Empty:
       case types::Constant:
@@ -269,34 +294,37 @@ expression &expression::absorp(const expression &e)
     if( type != types::Sum && \
         type != types::Product ) throw std::runtime_error("not sum or product");
 
-    DEBUG(e);
     MARKER("ENTERING ABSORP FUNCTION:");
     if( type == e.type )
     {
-        MARKER("equal types: absorping children");
         for(auto p : e.child)
             this->absorb(*p);
-        MARKER("EXITING ABSORP FUNCTION");
+        MARKER("EXITING ABSORP FUNCTION: absorped children");
         return (*this);
     }
 
     expression *q = new expression(e);
     if( q->type == types::Product )
     {
-        if( q->child.size() == 0 )
-            throw std::runtime_error("cannot absorp empty product");
-
-        if( q->child[0]->type == types::Constant ) {
+        if( q->child.size() == 0 ) {
+            // empty products are taken to be `1`
+            q->set_value(1); // makes q a types::Constant with value `1`;
+            MARKER("q->set_value(1)");
+        } else if( q->child[0]->type == types::Constant ) {
             if( q->child.size() == 1 ) {
-                MARKER("product constant case: absorping only child");
-                this->absorb(*(q->child[0]));
-                q->clear();
-                delete q;
-                MARKER("EXITING ABSORP FUNCTION: product");
-                return (*this);
+                constant t;
+                // store eval'd value of q
+                t = pow(q->child[0]->get_value(), q->child[0]->weight);
+
+                // clear q's contents
+                delete q->child[0];
+                q->child.clear();
+
+                // make q constant with value `t`
+                q->set_value(t);
+                MARKER("PRODUCT q->set_value(eval)");
             }
             else {
-                MARKER("product constant case: absorping constant into weight");
                 q->weight *= q->child[0]->desc.value;
                 delete q->child[0];
                 q->child.erase(q->child.begin());
@@ -304,46 +332,59 @@ expression &expression::absorp(const expression &e)
         }
     }
 
-    if(child.size() == 0)
+    if( q->type == types::Sum )
     {
-        child.push_back(q);
+        if( q->child.size() == 0 ) {
+            // empty sums are taken to be `0`
+            q->set_value(0); // makes q a types::Constant with value `0`;
+            MARKER("q->set_value(1)");
+        } else if( q->child.size() == 1 ) {
+            if( q->child[0]->type == types::Constant ) {
+                constant t;
+                // store eval'd value of q
+                t = (q->child[0]->get_value())*(q->child[0]->weight);
+
+                // clear q's contents
+                delete q->child[0];
+                q->child.clear();
+
+                // make q constant with value `t`
+                q->set_value(t);
+                MARKER("SUM q->set_value(eval)");
+            }
+        }
+    }
+
+    if(this->child.size() == 0)
+    {
+        this->child.push_back(q);
         MARKER("EXITING ABSORP FUNCTION: first child");
         return (*this);
     }
 
-    MARKER("processing children:");
+    MARKER("SCANNING CHILDREN:");
+    
+    // TODO: make this use binary-search    
+    for(auto p=child.begin(); p!=child.end(); p++)
     {
-        auto ss = std::lower_bound(
-            child.begin(), child.end(), q,
-            [](auto a, auto b) {
-                return ((*a) < (*b));
-            });
-        
-        DEBUG(*q);
-        if(ss != child.end())
-            DEBUG(*(*ss));
-    }
-    auto p=child.begin();
-    for(; p!=child.end(); p++)
-    {
-        if( e.type >  (*p)->type ) {
+        if( q->type >  (*p)->type ) {
             MARKER("type > : continue");
             continue;
         }
-        else if( e.type <  (*p)->type ) {
+        else if( q->type <  (*p)->type ) {
             MARKER("type < : insert");
             child.insert(p,q);
             MARKER("EXITING ABSORP FUNCTION: type");
             return (*this);
         }
-        else if( e.type == (*p)->type ) {
+        else if( q->type == (*p)->type ) {
             MARKER("type = : ");
-            switch(e.type) {
+            switch(q->type) {
               case types::Constant: {
                   if( type == types::Sum )
-                      (*p)->desc.value+=q->desc.value;
+                      (*p)->desc.value+=(q->desc.value)*(q->weight);
                   else
-                      (*p)->desc.value*=q->desc.value;
+                      (*p)->desc.value*=(q->desc.value);
                   delete q;
                   MARKER("EXITING ABSORP FUNCTION: constant");
                   return (*this);
@@ -354,27 +395,27 @@ expression &expression::absorp(const expression &e)
                              *p1 = ( (*p)->name == NULL ? var_sym : (*p)->name );
 
                   if( q->desc.id >  (*p)->desc.id ) {
-                      MARKER("variable: id > : continue");
+                      MARKER("\tvariable: id > : continue");
                       continue;
                   }
                   else if( q->desc.id == (*p)->desc.id ) {
                       auto n = strcmp(p0, p1);
                       if( n > 0 ) {
-                          MARKER("variable: id = & name > : continue");
+                          MARKER("\tvariable: id = & name > : continue");
                           continue;
                       }
                       else if( n == 0 ) {
-                          MARKER("variable: id = & name = : combined weights");
+                          MARKER("\tvariable: id = & name = : combined weights");
                           (*p)->weight += q->weight;
                           delete q;
                       }
                       else {
-                          MARKER("variable: id = & name < : insert");
+                          MARKER("\tvariable: id = & name < : insert");
                           child.insert(p, q);
                       }
                   }
                   else {
-                      MARKER("variable: id < : insert");
+                      MARKER("\tvariable: id < : insert");
                       child.insert(p,q);
                   }
                   
@@ -390,27 +431,96 @@ expression &expression::absorp(const expression &e)
                       if(!(*(*p) < (*q))) {
                           (*p)->weight += q->weight;
                           delete q;
-                          MARKER("aggregate = : combined weight");
+                          MARKER("\taggregate = : combined weight");
                       }
                       else {
-                          MARKER("aggregate > : continue");
+                          MARKER("\taggregate > : continue");
                           continue;
                       }
                   }
                   else {
-                      MARKER("aggregate < : insert");
+                      MARKER("\taggregate < : insert");
                       child.insert(p,q);
                   }
                   MARKER("EXITING ABSORP FUNCTION: aggregate");
                   return (*this);
                     
             }
-        } 
+        }
     }
 
     child.push_back(q);
-    MARKER("EXITING ABSORP FUNCTION: insert as last child");
+    MARKER("EXITING ABSORP FUNCTION: last child");
     return (*this);
+}
+
+
+// assign all leafs matching variable `var` with `expr`
+bool expression::assign(expression &var, expression &expr)
+{
+    bool ret = false;
+    if(var.type != types::Variable)
+        throw std::runtime_error("cannot assign to non-variable type");
+
+    switch(type)
+    {
+      case types::Empty:
+      case types::Constant:
+          return false;
+
+      case types::Variable:
+      {
+          const char *p0 = (var.name == NULL ? var_sym : var.name),
+              *p1 = (this->name == NULL ? var_sym : this->name);
+        
+          if((strcmp(p0, p1) == 0) && (this->desc.id == var.desc.id))
+          {
+              constant w = this->weight;
+              this->copy(expr);
+              this->weight = w;
+              return true;
+          }
+          return false;
+      }
+
+      case types::Tuple:
+      case types::Apply:
+      {
+          for(auto p : child)
+              if(p != NULL)
+                  ret |= p->assign(var, expr);
+          
+          return ret;
+      }
+      case types::Product:
+      case types::Sum:
+      {
+          std::vector<expression*> tmp1;
+          std::vector<expression*> tmp0;
+          for(auto p : child)
+          {
+              if(p->assign(var, expr)) {
+                  ret = true;
+                  tmp1.push_back(p);
+              } else
+                  tmp0.push_back(p);
+          }
+
+          this->child = tmp0;
+          for(auto q : tmp1)
+          {
+              DEBUG(*q);
+              DEBUG(q->weight);
+              this->absorb(*q);
+              q->clear();
+          }
+          return ret;
+      }
+      default:
+          return false;
+    }
+    
+    return ret;
 }
 
 }; // symbolic
