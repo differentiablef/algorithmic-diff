@@ -105,7 +105,7 @@ class expression
     expression  at(std::initializer_list<expression*> il);
 
     // sum & product
-    expression &absorp(const expression &e);   // asserts: type in {types::Sum, types::Product}
+    expression &absorb(const expression &e);   // asserts: type in {types::Sum, types::Product}
     
   public: // parse tree interface
     
@@ -124,16 +124,16 @@ class expression
     expression &operator+=(const expression &rhs)
     {
         if(this->type == types::Sum)
-            return this->absorp(rhs);
+            return this->absorb(rhs);
         else {
             expression *e;
             if(rhs.type == types::Sum) {
                 e = new expression(rhs);
-                e->absorp(*this);
+                e->absorb(*this);
             } else {
                 e = new expression(Sum);
-                e->absorp(*this);
-                e->absorp(rhs);
+                e->absorb(*this);
+                e->absorb(rhs);
             }
             this->clear();
             this->copy(*e);
@@ -146,16 +146,16 @@ class expression
     expression &operator*=(const expression &rhs)
     {
         if(this->type == types::Product)
-            return this->absorp(rhs);
+            return this->absorb(rhs);
         else {
             expression *e;
             if(rhs.type == types::Product) {
                 e = new expression(rhs);
-                e->absorp(*this);
+                e->absorb(*this);
             } else {
                 e = new expression(Product);
-                e->absorp(*this);
-                e->absorp(rhs);
+                e->absorb(*this);
+                e->absorb(rhs);
             }
             this->clear();
             this->copy(*e);
@@ -167,16 +167,14 @@ class expression
     expression operator+(const expression &rhs)
     {
         if(this->type == types::Sum)
-            return expression(*this).absorp(rhs);
+            return expression(*this).absorb(rhs);
         if(rhs.type == types::Sum)
-            return expression(rhs).absorp(*this);
+            return expression(rhs).absorb(*this);
     }
     
 };
 
-
-// because I don't feel like looking for this spelling error.
-#define absorb absorp 
+ 
 
 // /////////////////////////////////////////////////////////////////////////////
 

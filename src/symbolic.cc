@@ -291,16 +291,15 @@ void expression::copy(const expression &t)
 }
 
 // preform e*(*this) or e+(*this); collecting like terms and factors
-expression &expression::absorp(const expression &e)
+expression &expression::absorb(const expression &e)
 {
     if( type != types::Sum && \
         type != types::Product ) throw std::runtime_error("not sum or product");
 
-    debug::begin("absorp");
+    debug::begin("absorb");
     
     if( type == e.type )
     {
-
         for(auto p : e.child) {
             debug::tag("child");
             this->absorb(*p);
