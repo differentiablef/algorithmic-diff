@@ -163,6 +163,7 @@ class expression
             return (*this);
         }
     }
+    
     expression operator+(const expression &rhs)
     {
         if(this->type == types::Sum)
