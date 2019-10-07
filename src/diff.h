@@ -9,7 +9,7 @@
 // root diff namespace segment
 namespace diff {
 
-typedef float constant;
+typedef double constant;
 
 };
 
