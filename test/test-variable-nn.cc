@@ -20,7 +20,7 @@ using std::map;
 // Testing /////////////////////////////////////////////////////////////////////
 #define N 4 // input size
 #define M 4 // number of layers
-#define H 10 // order of derv
+#define H 6 // order of derv
 std::size_t sizes[M+1] = {N, 6, 8, 6, 2}; // size of each layer
 
 int main
@@ -84,6 +84,7 @@ int main
                     output[k+1][j] += (output[k][i]) * (weight[k][i][j]);
                 }
                 output[k+1][j] += bias[k][j];
+
                 // TODO: apply real activation function
                 output[k+1][j] = (output[k+1][j]) * (output[k+1][j]);
 
@@ -91,7 +92,6 @@ int main
             }
         }
     }
-        
 }
 
 
