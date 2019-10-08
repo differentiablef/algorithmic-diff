@@ -1,0 +1,6 @@
+
+// the configured options and settings for this project
+#define AD_VERSION_MAJOR @AD_VERSION_MAJOR@
+#define AD_VERSION_MINOR @AD_VERSION_MINOR@
+
+#cmakedefine _DEBUG_
