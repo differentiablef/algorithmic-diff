@@ -9,6 +9,9 @@
 #include <vector>
 #include <experimental/source_location>
 
+// include project config file
+#include "algodiff-config.h"
+
 // a very useful template
 template<class T>
 std::ostream &operator<<(std::ostream &os, const std::initializer_list<T> &lst)
@@ -26,6 +29,7 @@ std::ostream &operator<<(std::ostream &os, const std::initializer_list<T> &lst)
     return os;
     
 }
+
 
 using std::cout;
 using std::cerr;
@@ -52,19 +56,6 @@ using std::endl;
 #define BOLD "\x1B[1m"
 #define UNDL "\x1B[4m"
 
-#define DEBUG(x) {                                                      \
-        std::string _x = __FILE__;  _x.resize(15);                      \
-        std::cout << std::right << std::setw(15) << FGRN("DEBUG") << ":" \
-                  << std::setw(15) << _x << ":"                         \
-                  << std::left << std::setw(4) << __LINE__<< ":"        \
-                  << std::right << std::setw(20) << FRED(#x) << " = " << (x) << std::endl; }
-    
-#define MARKER(x) {                                                     \
-        std::string _x = __FILE__; _x.resize(15);                       \
-        std::cout << std::right << std::setw(15) << FBLU("MARKER") << ":" \
-                  << std::setw(15) << _x << ":"                         \
-                  << std::left << std::setw(4) << __LINE__              \
-                  << (x) << std::endl; } 
 #ifdef _DEBUG_
 namespace debug
 {
@@ -102,6 +93,8 @@ void begin_msg(T &label, T0 &attr, const context &loc)
             std::cout << KCYN << t << RST << ":";
         tags.clear();
     }
+
+    std::cout << std::setprecision(13);
 }
 
 template<class T>
@@ -152,6 +145,14 @@ void end(T &message, const context &loc = context::current())
 // debug::marker
 }
 
+// compatibility defines
+#define DEBUG(x) \
+    debug::dump(#x, x);
+
+#define MARKER(x) \
+    debug::log(x)
+
+
 #else
 namespace debug
 {
@@ -167,6 +168,11 @@ inline void end(T &m, const context &l = context::current()) {return;};
 template<class T>
 inline void begin(T &m, const context &l=context::current()) {return;};
 }
+
+// compatibility defines
+#define DEBUG(x) { }
+#define MARKER(x) { }
+
 #endif /*_DEBUG_*/
 
 #endif /* UTIL_H */
