@@ -1,6 +1,5 @@
 // -*- C++ -*- C forwarding header.
 
-
 #ifndef VARIABLE_H
 #define VARIABLE_H
 
@@ -8,7 +7,7 @@
 #include <iostream>
 
 #include "diff.h"
-
+#include "util.h"
 
 namespace diff
 {
@@ -31,12 +30,19 @@ class variable
     {   held_constant = false;
         (*this) = val; };
     
-    variable(state_vec &val)
-    {   auto i = 0;
-        held_constant = false;
+    variable(const state_vec &val)
+    {   auto i = 0;       
         for(; i <= N; i++)
             value[i] = val[i];
+        held_constant = false;
     };
+
+    variable(const variable &val)
+    {   auto i = 0;
+        for(; i <= N; i++)
+            value[i] = val.value[i];
+        held_constant = val.held_constant;
+    }
 
   public: // assignment/update operators
     variable& operator+=(const variable &r)
@@ -45,10 +51,18 @@ class variable
         if(!r.held_constant)
             for(auto i = 1; i <= N; i++)
                 this->value[i]+=r.value[i];
-        held_constant = false;
+        held_constant &= r.held_constant;
         return (*this);
     };
 
+    variable& operator*=(const variable &r)
+    {   // TODO: Find a better way to do this...
+        //    (which doesn't require fucking with already defined operators)
+        variable t = (*this)*(r);
+        for(auto i = 0; i <= N; i++)
+            value[i] = t.value[i];
+        return (*this);
+    };
 
     variable& operator=(const variable &r)
     {   auto i = 0;
@@ -60,17 +74,16 @@ class variable
 
     variable& operator=(const state_vec &r)
     {   auto i = 0;
-        held_constant = false;
         for(; i <= N; i++)
             value[i] = r[i];
+        held_constant = false;
         return (*this);
     };
     
     variable& operator=(num_type &val)
     {   auto i = 0;
-        held_constant = false;
         value[i++]=val;
-        value[i++]=1;
+        value[i++]=(held_constant ? 0 : 1);
         for(; i <= N; i++)
             value[i]=0;
         return (*this);
@@ -82,10 +95,10 @@ class variable
 
     void as_variable()
     {   auto i = 1;
-        held_constant = false;
         value[i++] = 1;
         for(; i <= N; i++)
             value[i] = 0;
+        held_constant = false;
     };
 
     void clear()
@@ -119,11 +132,11 @@ std::ostream &operator<<(std::ostream &os, const variable<N0, numtype> &x)
             os << ", ";
         else
             first = false;
-        os << std::fixed << x.value[i];
+        os << std::fixed << std::setprecision(5) << x.value[i];
     }
     os << "]";
     if(x.held_constant)
-        os << " (const)";
+        os << "(const)";
     return os;
 }
 
@@ -134,22 +147,27 @@ std::ostream &operator<<(std::ostream &os, const variable<N0, numtype> &x)
 template<std::size_t N, typename num_type = constant>
 __variable operator*(const __variable &lhs, const __variable &rhs)
 {
-    if(lhs.held_constant && !(rhs.held_constant))
-        return (lhs.value[0])*(rhs);
-    else if(!(lhs.held_constant) && rhs.held_constant)
-        return (lhs)*(rhs.value[0]);
-    else if(lhs.held_constant && rhs.held_constant) {
-        __variable ext;
-        ext.clear();
-        ext.value[0] = (lhs.value[0])*(rhs.value[0]);
-        ext.held_constant = true;
+    __variable ext;
+    if(lhs.held_constant && !(rhs.held_constant)) {
+        for(auto i=0; i<=N; i++)
+            ext.value[i] = rhs.value[i] * lhs.value[0];
+        ext.held_constant = false;
         return ext;
-    } else {
-        __variable ext;
+    }
+    else if(!(lhs.held_constant) && rhs.held_constant) {
+        for(auto i=0; i<=N; i++)
+            ext.value[i] = rhs.value[0] * lhs.value[i];
+        ext.held_constant = false;
+        return ext;
+    }
+    else if(lhs.held_constant && rhs.held_constant) {
+        ext = (lhs.value[0])*(rhs.value[0]);
+        return ext;
+    }
+    else {
         num_type c1[N+3], c0[N+3],
             *p0=&c0[1], *p1=&c1[1], *t;
-        ext.held_constant =false;
-        ext.clear();
+
         // compute n'th value of ext using binomial-style
         //          formula for D[rhs * lhs, n]    
         for(auto n = 0; n <= N; n++)
@@ -171,6 +189,8 @@ __variable operator*(const __variable &lhs, const __variable &rhs)
             // swap p0 and p1
             t  = p0; p0 = p1; p1 = t;
         }
+        
+        ext.held_constant =false;
         return ext;
     }
 }
@@ -179,15 +199,12 @@ __variable operator*(const __variable &lhs, const __variable &rhs)
 template<std::size_t N, typename num_type = constant>                   
 __variable operator *(const __variable &lhs, const num_type &rhs)      
 {
+    __variable agg;        
     if(lhs.held_constant) {
-        __variable agg(lhs.value[0]);
-        agg.value[0] *= rhs;
-        agg.value[1] = 0;
-        agg.held_constant = true;
+        agg = (lhs.value[0])*(rhs);
         return agg;
     }
     else {
-        __variable agg;
         for(auto i = 0; i <= N; i++)                                        
             agg.value[i] = (lhs.value[i]) * (rhs);
         agg.held_constant = false;
@@ -198,14 +215,12 @@ __variable operator *(const __variable &lhs, const num_type &rhs)
 template<std::size_t N, typename num_type = constant>                   
 __variable operator *(const num_type &lhs, const __variable &rhs)      
 {
+    __variable agg;
     if(rhs.held_constant) {
-        __variable agg(rhs.value[0]);
-        agg.value[0] *= lhs;
-        agg.held_constant = true;
+        agg = (rhs.value[0])*(lhs);
         return agg;
     }
     else {
-        __variable agg;
         for(auto i = 0; i <= N; i++)                                        
             agg.value[i] = (lhs) * (rhs.value[i]);
         agg.held_constant = false;
@@ -217,15 +232,13 @@ __variable operator *(const num_type &lhs, const __variable &rhs)
 template<std::size_t N, typename num_type = constant>                   
 __variable operator +(const __variable &lhs, const __variable &rhs)
 {
-    if(lhs.held_constant && !rhs.held_constant)
+    if(lhs.held_constant && !rhs.held_constant) 
         return (lhs.value[0]) + (rhs);
     else if(!lhs.held_constant && rhs.held_constant)
         return (lhs) + (rhs.value[0]);
-    else if(!lhs.held_constant && !rhs.held_constant) {
+    else if(lhs.held_constant && rhs.held_constant) {
         __variable agg;
-        agg.clear();
-        agg.value[0] =lhs.value[0] + rhs.value[0];
-        agg.held_constant = true;
+        agg = lhs.value[0] + rhs.value[0];
         return agg;
     }
     else {
@@ -243,7 +256,6 @@ __variable operator +(const num_type &lhs, const __variable &rhs)
 {
     __variable agg(rhs);
     agg.value[0] += lhs;
-    agg.held_constant = false;
     return agg;
 }
 
@@ -253,7 +265,6 @@ __variable operator +(const __variable &lhs, const num_type &rhs)
 {
     __variable agg(lhs.value);
     agg.value[0] += rhs;
-    agg.held_constant = false;
     return agg;
 }
 
@@ -266,19 +277,17 @@ __variable operator -(const __variable &lhs, const __variable &rhs)
         agg.value[0] -= lhs.value[0];
         for( auto i = 0; i <= N; i++ )
             agg.value[i] *= (-1);
-        agg.held_constant = false;
         return agg;
     }
     else if(!lhs.held_constant && rhs.held_constant) {
-        __variable agg(lhs.value);
+        __variable agg(lhs);
         agg.value[0] -= rhs.value[0];
-        agg.held_constant = false;
         return agg;
     }
-    else if(!lhs.held_constant && !rhs.held_constant) {
-        __variable agg;
-        agg.clear();
+    else if(lhs.held_constant && rhs.held_constant) {
+        __variable agg(0);
         agg.value[0] = lhs.value[0] - rhs.value[0];
+        agg.value[1] = 0;
         agg.held_constant = true;
         return agg;
     }
@@ -296,9 +305,7 @@ __variable operator -(const num_type &lhs, const __variable &rhs)
 {
     if(rhs.held_constant) {
         __variable agg;
-        agg.clear();
-        agg.value[0] = lhs - rhs.value[0];
-        agg.held_constant = true;
+        agg = lhs - rhs.value[0];
         return agg;
     }
     else {
@@ -306,7 +313,6 @@ __variable operator -(const num_type &lhs, const __variable &rhs)
         agg.value[0] = lhs - agg.value[0];
         for(auto i = 1; i <= N; i++ )
             agg.value[i] *= (-1);
-        agg.held_constant = false;
         return agg;
     }
     
@@ -317,15 +323,12 @@ __variable operator -(const __variable &lhs, const num_type &rhs)
 {
     if(lhs.held_constant) {
         __variable agg;
-        agg.clear();
-        agg.value[0] = lhs.value[0] - rhs;
-        agg.held_constant = true;
+        agg = lhs.value[0] - rhs;
         return agg;
     }
     else {
         __variable agg(lhs);
         agg.value[0] -= rhs;
-        agg.held_constant = false;
         return agg;
     }
 }
