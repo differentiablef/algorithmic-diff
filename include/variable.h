@@ -34,15 +34,13 @@ class variable
     {   auto i = 0;       
         for(; i <= N; i++)
             value[i] = val[i];
-        held_constant = false;
-    };
+        held_constant = false;  };
 
     variable(const variable &val)
     {   auto i = 0;
         for(; i <= N; i++)
             value[i] = val.value[i];
-        held_constant = val.held_constant;
-    }
+        held_constant = val.held_constant;  }
 
   public: // assignment/update operators
     variable& operator+=(const variable &r)

@@ -87,22 +87,22 @@ variable<N, num_type> apply(generic *f, variable<N, num_type> &x)
 
     fval[2] = f->next();               // get f^(2)(x.value[0])
     ext.value[2] = (fval[1])*(val[2])  // compute second der.
-        +          (fval[2])*(val[1])*(val[1]); 
+                 + (fval[2])*(val[1])*(val[1]); 
 
     if(N == 2) goto done;
 
     fval[3] = f->next();               // get f^(3)(x.value[0])
     ext.value[3] = (fval[1])*(val[3])  // compute third der.
-        +          (fval[2])*3*(val[1])*(val[2])
-        +          (fval[3])*(val[1])*(val[1])*(val[1]);
+                 + (fval[2])*3*(val[1])*(val[2])
+                 + (fval[3])*(val[1])*(val[1])*(val[1]);
 
     if(N == 3) goto done;
     
     fval[4] = f->next();               // get f^(4)(x.value[0])
     ext.value[4] = (fval[1])*(val[4])  // compute fourth der.
-        +          (fval[2])*((4*(val[1])*(val[3]))+(3*(val[2])*(val[2])))
-        +          (fval[3])*6*(val[1])*(val[1])*(val[2])
-        +          (fval[4])*(val[1])*(val[1])*(val[1])*(val[1]);
+                 + (fval[2])*((4*(val[1])*(val[3]))+(3*(val[2])*(val[2])))
+                 + (fval[3])*6*(val[1])*(val[1])*(val[2])
+                 + (fval[4])*(val[1])*(val[1])*(val[1])*(val[1]);
 
     if(N == 4) goto done;
 
@@ -110,7 +110,8 @@ variable<N, num_type> apply(generic *f, variable<N, num_type> &x)
     // For m >= 5:
     //     we use dynamically generated formulas calculated by `init`
     //
-    for( m = 5; m <= N; m++ ) {
+    for( m = 5; m <= N; m++ )
+    {
         // Compute m'th derivative: ////////////////////////////////////////////
         debug::log("computing formula");
         debug::dump("m", m);
@@ -123,7 +124,7 @@ variable<N, num_type> apply(generic *f, variable<N, num_type> &x)
 
         // loop over terms and add contribution to `ext`
         for(auto t0 : comp_formula[m]) {
-            debug::log("computing coeff");
+            debug::log("computing derivative");
             // compute coefficient of fval[t0.first]
             r0 = 0;
             
@@ -146,8 +147,6 @@ variable<N, num_type> apply(generic *f, variable<N, num_type> &x)
                         r2 *= r2;
                         n>>=1;
                     }
-                    debug::dump("  ord", p.first);
-                    debug::dump(" expo", p.second);
                 }
                 // add term's value to coefficient
                 r0 += r1;

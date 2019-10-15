@@ -61,8 +61,7 @@ ostream &operator<<(ostream &os, const expression &a)
           }
           os << sum_par[1];
           return os;
-      }
-      
+      }      
       case types::Product:
       {
           os << product_par[0];
@@ -75,12 +74,10 @@ ostream &operator<<(ostream &os, const expression &a)
               os << (*p); // recursive call
               if(p->weight != 1)
                   cout << exponet_sym << p->weight;
-
           }
           os << product_par[1];
           return os;
       }
-
       case types::Apply:
           if(a.name != NULL)
               os << a.name;
@@ -98,9 +95,7 @@ ostream &operator<<(ostream &os, const expression &a)
           os << tuple_par[1];
           return os;
       }
-
     }
-
     return os;
 }
 

@@ -11,7 +11,6 @@
 
 int main
 () {
-
     // source of these is sympy
     double exp_ans[16] = {0.77880078307140487848, -0.77880078307140487848, -0.77880078307140487848,
                            3.8940039153570245034, 0.77880078307140487848, -31.930832105927599684,
@@ -19,7 +18,7 @@ int main
                            -5047.4078750857752311, 17593.888490366109181, 83354.269011349388165,
                            -470419.81579940376105, -1530082.6404729816131, 13760997.851257478818,
                            29081316.081986006349};
-
+    
     double log_ans[16] = {0.80000000000000004441, -0.64000000000000001332, -0.25599999999999994982,
                            3.6863999999999998991,  -9.3388800000000049550, -21.626879999999996329,
                            327.94214400000021215, -1109.8128384000010556, -7589.0058854400012933,
@@ -50,11 +49,13 @@ int main
     debug::dump("f", fval);
 
     diff::constant norm2 = 0, norminf=0, r0;
-    for(auto i = 0; i <= N; i++) {
+    for(auto i = 0; i <= N; i++)
+    {
         r0 = fabs(exp_ans[i]-fval.value[i]);
         norm2 += r0*r0;
         norminf = (norminf < r0? r0 : norminf);
     }
+    
     norm2 = ::sqrt(norm2);
     debug::dump("  2-norm", norm2);
     debug::dump("inf-norm", norminf);
@@ -84,6 +85,7 @@ int main
         norm2 += r0*r0;
         norminf = (norminf < r0 ? r0 : norminf);
     }
+    
     norm2 = ::sqrt(norm2);
     debug::dump(" l2-norm", norm2);
     debug::dump("inf-norm", norminf);
