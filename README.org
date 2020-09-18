@@ -1,0 +1,3 @@
+* algorithmic-diff
+
+This is toy library implementing arbitrary order algorithmic differentiation.
